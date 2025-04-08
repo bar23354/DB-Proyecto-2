@@ -33,3 +33,6 @@ CREATE TABLE Pasajero (
     pasaporte VARCHAR(20) UNIQUE,
     email VARCHAR(100)
 );
+
+ALTER TABLE vuelo
+ADD COLUMN avion VARCHAR(255) NOT NULL;
