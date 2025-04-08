@@ -1,6 +1,7 @@
-INSERT INTO Vuelo (numero_vuelo, aerolinea, origen, destino, fecha_hora)
+INSERT INTO Vuelo (numero_vuelo, avion, aerolinea, origen, destino, fecha_hora)
 VALUES (
     'AA123', 
+    'Boeing 737',
     'American Airlines', 
     'Nueva York', 
     'Los Ángeles', 

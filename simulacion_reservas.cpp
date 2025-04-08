@@ -6,15 +6,14 @@
 #include <cstdlib>
 #include <ctime>
 #include <unistd.h>
-#include <libpqxx/pqxx> 
 
 using namespace std;
 using namespace pqxx;
 
-// Configuración de la base de datos
-const string DB_CONNECTION = "dbname=airline user=postgres password=postgres";
+// g++ -std=c++17 simulacion_reservas.cpp -lpqxx -lpthread -o reservas
+// ./reservas 10 5 "SERIALIZABLE"
+const string DB_CONNECTION = "dbname=airline user=postgres password=postgres client_encoding=UTF8";
 
-// Estructura para pasar parámetros a los hilos
 struct ThreadParams {
     int thread_id;
     int asiento_id;
@@ -22,88 +21,83 @@ struct ThreadParams {
     string isolation_level;
 };
 
-// Función para conectar a la base de datos
 connection* connect_db() {
     try {
         return new connection(DB_CONNECTION);
     } catch (const exception &e) {
-        cerr << "Error al conectar a la base de datos: " << e.what() << endl;
+        cerr << "Error de conexión: " << e.what() << endl;
         return nullptr;
     }
 }
 
-// Función que ejecuta cada hilo para intentar reservar un asiento
 void* reserve_seat(void* params) {
-    ThreadParams* p = (ThreadParams*)params;
+    ThreadParams* p = static_cast<ThreadParams*>(params);
     
     try {
-        connection* C = connect_db();
-        if (!C) {
+        connection* conn = connect_db();
+        if (!conn) {
             cerr << "Hilo " << p->thread_id << ": Error de conexión" << endl;
             return nullptr;
         }
 
-        // Configurar el nivel de aislamiento
-        string isolation_sql;
-        if (p->isolation_level == "READ COMMITTED") {
-            isolation_sql = "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;";
-        } else if (p->isolation_level == "REPEATABLE READ") {
-            isolation_sql = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;";
-        } else { // SERIALIZABLE
-            isolation_sql = "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;";
+        string isolation_sql = "SET TRANSACTION ISOLATION LEVEL " + p->isolation_level + ";";
+        
+        int max_retries = (p->isolation_level == "SERIALIZABLE") ? 3 : 1;
+        bool success = false;
+
+        for (int retry = 0; retry < max_retries; ++retry) {
+            try {
+                work tx(*conn);
+                conn->exec(isolation_sql);
+
+                string update_sql = 
+                    "UPDATE Asiento SET estado = 'reservado' "
+                    "WHERE ID = " + to_string(p->asiento_id) + " "
+                    "AND estado = 'libre';";
+
+                result res = tx.exec(update_sql);
+
+                if (res.affected_rows() > 0) {
+                    string insert_sql = 
+                        "INSERT INTO Reserva(asiento_id, pasajero_id, estado) "
+                        "VALUES(" + to_string(p->asiento_id) + ", " 
+                        + to_string(p->pasajero_id) + ", 'éxito');";
+                    tx.exec(insert_sql);
+                    tx.commit();
+                    cout << "Hilo " << p->thread_id << ": Reserva EXITOSA para asiento " 
+                         << p->asiento_id << endl;
+                    success = true;
+                    break;
+                } else {
+                    string insert_sql = 
+                        "INSERT INTO Reserva(asiento_id, pasajero_id, estado) "
+                        "VALUES(" + to_string(p->asiento_id) + ", " 
+                        + to_string(p->pasajero_id) + ", 'fallido');";
+                    tx.exec(insert_sql);
+                    tx.commit();
+                    cout << "Hilo " << p->thread_id << ": Reserva FALLIDA (asiento " 
+                         << p->asiento_id << " ocupado)" << endl;
+                    break;
+                }
+            } catch (const serialization_failure& e) {
+                if (retry == max_retries - 1) throw;
+                cerr << "Hilo " << p->thread_id << ": Reintento " << (retry + 1) << endl;
+            }
         }
 
-        // Iniciar transacción
-        work W(*C);
-        C->exec(isolation_sql);
-
-        // Verificar estado del asiento
-        string check_sql = "SELECT estado FROM Asiento WHERE ID = " + to_string(p->asiento_id) + ";";
-        result R = W.exec(check_sql);
-        
-        if (R.empty()) {
-            cerr << "Hilo " << p->thread_id << ": Asiento no encontrado" << endl;
-            W.abort();
-            delete C;
-            return nullptr;
-        }
-
-        string estado = R[0][0].as<string>();
-        
-        if (estado == "libre") {
-            // Intentar reservar
-            string update_sql = "UPDATE Asiento SET estado = 'reservado' WHERE ID = " + to_string(p->asiento_id) + ";";
-            W.exec(update_sql);
-            
-            string insert_sql = "INSERT INTO Reserva (asiento_id, pasajero_id, estado) VALUES (" + 
-                                to_string(p->asiento_id) + ", " + to_string(p->pasajero_id) + ", 'éxito');";
-            W.exec(insert_sql);
-            
-            W.commit();
-            cout << "Hilo " << p->thread_id << ": Reserva exitosa para asiento " << p->asiento_id << endl;
-        } else {
-            // Asiento ya reservado
-            string insert_sql = "INSERT INTO Reserva (asiento_id, pasajero_id, estado) VALUES (" + 
-                                to_string(p->asiento_id) + ", " + to_string(p->pasajero_id) + ", 'fallido');";
-            W.exec(insert_sql);
-            
-            W.commit();
-            cout << "Hilo " << p->thread_id << ": Reserva fallida - asiento " << p->asiento_id << " ya ocupado" << endl;
-        }
-        
-        delete C;
+        delete conn;
     } catch (const exception &e) {
-        cerr << "Hilo " << p->thread_id << ": Error en transacción - " << e.what() << endl;
+        cerr << "Hilo " << p->thread_id << ": Error crítico - " << e.what() << endl;
     }
     
     return nullptr;
 }
 
-// Función principal
 int main(int argc, char* argv[]) {
     if (argc != 4) {
-        cerr << "Uso: " << argv[0] << " <num_usuarios> <asiento_id> <isolation_level>" << endl;
-        cerr << "Niveles de aislamiento: READ COMMITTED, REPEATABLE READ, SERIALIZABLE" << endl;
+        cerr << "Uso: " << argv[0] << " <num_usuarios> <asiento_id> <isolation_level>\n"
+             << "Niveles de aislamiento válidos: READ COMMITTED, REPEATABLE READ, SERIALIZABLE" 
+             << endl;
         return 1;
     }
 
@@ -111,41 +105,45 @@ int main(int argc, char* argv[]) {
     int asiento_id = atoi(argv[2]);
     string isolation_level = argv[3];
     
-    // Validar nivel de aislamiento
-    if (isolation_level != "READ COMMITTED" && isolation_level != "REPEATABLE READ" && isolation_level != "SERIALIZABLE") {
-        cerr << "Nivel de aislamiento no válido. Opciones: READ COMMITTED, REPEATABLE READ, SERIALIZABLE" << endl;
+    const vector<string> valid_levels = {
+        "READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"
+    };
+    
+    if (find(valid_levels.begin(), valid_levels.end(), isolation_level) == valid_levels.end()) {
+        cerr << "Error: Nivel de aislamiento no válido" << endl;
         return 1;
     }
 
-    cout << "Iniciando simulación con " << num_usuarios << " usuarios para asiento " << asiento_id 
-         << " con nivel de aislamiento " << isolation_level << endl;
+    cout << "=== Simulación iniciada ===" << endl
+         << "Usuarios: " << num_usuarios << endl
+         << "Asiento objetivo: " << asiento_id << endl
+         << "Nivel de aislamiento: " << isolation_level << "\n\n";
 
-    // Crear hilos
     vector<pthread_t> threads(num_usuarios);
     vector<ThreadParams> params(num_usuarios);
     
     srand(time(nullptr));
     
     for (int i = 0; i < num_usuarios; ++i) {
-        params[i].thread_id = i + 1;
-        params[i].asiento_id = asiento_id;
-        params[i].pasajero_id = (rand() % 3) + 1; // IDs de pasajero entre 1 y 3
-        params[i].isolation_level = isolation_level;
+        params[i] = {
+            .thread_id = i + 1,
+            .asiento_id = asiento_id,
+            .pasajero_id = (rand() % 3) + 1,
+            .isolation_level = isolation_level
+        };
         
         if (pthread_create(&threads[i], nullptr, reserve_seat, &params[i])) {
-            cerr << "Error al crear hilo " << i << endl;
+            cerr << "Error fatal: No se pudo crear el hilo " << i << endl;
             return 1;
         }
         
-        // Pequeña pausa para variar el timing
         usleep(rand() % 1000);
     }
 
-    // Esperar a que todos los hilos terminen
-    for (int i = 0; i < num_usuarios; ++i) {
-        pthread_join(threads[i], nullptr);
+    for (auto& thread : threads) {
+        pthread_join(thread, nullptr);
     }
 
-    cout << "Simulación completada" << endl;
+    cout << "\n=== Simulación completada ===" << endl;
     return 0;
 }

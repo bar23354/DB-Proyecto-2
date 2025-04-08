@@ -1,11 +1,10 @@
 CREATE TABLE Vuelo (
     ID SERIAL PRIMARY KEY,
     numero_vuelo VARCHAR(10) NOT NULL,
-	avion VARCHAR(20) NOT NULL,
+    avion VARCHAR(20) NOT NULL,
     aerolinea VARCHAR(50),
     origen VARCHAR(50),
     destino VARCHAR(50),
-    avion VARCHAR(20) NOT NULL,
     fecha_hora TIMESTAMP NOT NULL
 );
 
@@ -23,7 +22,7 @@ CREATE TABLE Asiento (
 CREATE TABLE Reserva (
     ID SERIAL PRIMARY KEY,
     asiento_id INTEGER NOT NULL REFERENCES Asiento(ID),
-    pasajero_id INTEGER,
+    pasajero_id INTEGER REFERENCES Pasajero(ID),
     fecha_reserva TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     estado VARCHAR(10) CHECK (estado IN ('éxito', 'fallido'))
 );
