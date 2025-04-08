@@ -5,6 +5,7 @@ CREATE TABLE Vuelo (
     aerolinea VARCHAR(50),
     origen VARCHAR(50),
     destino VARCHAR(50),
+    avion VARCHAR(20) NOT NULL,
     fecha_hora TIMESTAMP NOT NULL
 );
 
@@ -33,6 +34,3 @@ CREATE TABLE Pasajero (
     pasaporte VARCHAR(20) UNIQUE,
     email VARCHAR(100)
 );
-
-ALTER TABLE vuelo
-ADD COLUMN avion VARCHAR(255) NOT NULL;
