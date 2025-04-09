@@ -1,20 +1,18 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
-# Wait for PostgreSQL to be ready
-until psql -U postgres -c '\q'; do
-  >&2 echo "PostgreSQL is unavailable - sleeping"
-  sleep 1
+echo "Esperando a que PostgreSQL esté listo..."
+
+until pg_isready -U postgres; do
+  echo "PostgreSQL no está disponible aún - esperando..."
+  sleep 2
 done
 
-# Create the database
-psql -U postgres -c "CREATE DATABASE airline;"
-
-# Initialize the database schema
+echo "Aplicando esquema DDL..."
 psql -U postgres -d airline -f /app/ddl.sql
 
-# Load the initial data
+echo "Cargando datos iniciales..."
 psql -U postgres -d airline -f /app/data.sql
 
->&2 echo "PostgreSQL is ready - database initialized"
+echo "¡Base de datos inicializada con éxito!"

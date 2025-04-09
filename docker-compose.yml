@@ -1,27 +1,33 @@
-version: '3.8'
-
 services:
   db:
-    build: .
+    image: postgres:latest
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: airline
+      POSTGRES_DB: airline  # Esta línea crea automáticamente la BD
     ports:
       - "5432:5432"
     volumes:
+      - ./init_db.sh:/docker-entrypoint-initdb.d/init_db.sh
+      - ./ddl.sql:/app/ddl.sql
+      - ./data.sql:/app/data.sql
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d airline"]  # Verifica la BD específica
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   app:
     build: .
     depends_on:
-      - db
-    command: >
-      bash -c "while ! pg_isready -h db -U postgres; do sleep 1; done &&
-      sleep 5 &&
-      ./reservas 10 5 \"SERIALIZABLE\""
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "while ! pg_isready -h db -U postgres -d airline; do sleep 2; done && sleep 5 && ./reservas 10 5 \"SERIALIZABLE\""]
     environment:
       DB_CONNECTION: "dbname=airline user=postgres password=postgres host=db client_encoding=UTF8"
+    volumes:
+      - .:/app
 
 volumes:
   postgres_data:
