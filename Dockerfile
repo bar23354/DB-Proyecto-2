@@ -1,20 +1,17 @@
-FROM postgres:latest
-
-RUN apt-get update && \
-    apt-get install -y \
-    build-essential \
-    libpq-dev \
-    postgresql-server-dev-all \
-    g++ \
-    libpqxx-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
-COPY . .
+COPY src/go.mod src/go.sum ./
+RUN go mod download
 
-RUN g++ -std=c++17 simulacion_reservas.cpp -lpqxx -lpthread -o reservas
+# Copia todos los archivos fuente
+COPY src/ ./
 
-COPY init_db.sh /docker-entrypoint-initdb.d/
-RUN chmod +x /docker-entrypoint-initdb.d/init_db.sh
+# Compila especificando todos los archivos .go necesarios
+RUN CGO_ENABLED=0 GOOS=linux go build -o reservas-app main.go simulator.go database.go models.go
 
-CMD ["tail", "-f", "/dev/null"]
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/reservas-app .
+COPY sql_scripts/ /sql_scripts/
+CMD ["./reservas-app"]
