@@ -1,13 +1,17 @@
 package main
 
 type ReservationResult struct {
-	Success      bool
-	SeatID       int
-	PassengerID  int
-	Duration     int64 // milisegundos
-	Error        error
-	Isolation    string
-	Concurrency  int
+    Success      bool
+    SeatID       int
+    PassengerID  int
+    Duration     int64 // milisegundos
+    Error        error
+    ErrorDetail  string // Mensaje de error detallado
+    Isolation    string
+    Concurrency  int
+    IsDeadlock   bool
+    Attempt      int
+    ProcessingMS int64
 }
 
 type SimulationConfig struct {
@@ -26,4 +30,6 @@ type SimulationResult struct {
 	IsolationLevel  string
 	Concurrency     int
 	Deadlocks       int
+	FinalSeatState  string
+	DetailedResults []ReservationResult
 }
