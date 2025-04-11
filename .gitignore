@@ -1,5 +1,5 @@
 # Archivos de entorno
-.env
+reservation-simulator\.env
 .env.local
 .env*.backup
 
