@@ -1,0 +1,2 @@
+Concurrencia,Nivel Aislamiento,Exitos,Fallos,Deadlocks,Tiempo Avg (ms),Estado Final
+10,READ COMMITTED,0,10,0,108.01,reservado
