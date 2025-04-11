@@ -1,1 +1,9 @@
+# Archivos de entorno
 .env
+.env.local
+.env*.backup
+
+# Otros archivos comunes a ignorar
+node_modules/
+.DS_Store
+dist/
