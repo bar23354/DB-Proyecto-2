@@ -84,7 +84,7 @@ CREATE TABLE MetodoPago (
 -- Tabla de reservaciones (con campos para concurrencia)
 CREATE TABLE Reserva (
     ID SERIAL PRIMARY KEY,
-    codigo_reserva VARCHAR(10) UNIQUE NOT NULL,
+    codigo_reserva VARCHAR(50) UNIQUE NOT NULL,
     pasajero_id INTEGER NOT NULL REFERENCES Pasajero(ID),
     fecha_reserva TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     estado VARCHAR(20) CHECK (estado IN ('pendiente', 'confirmada', 'cancelada', 'completada')),
