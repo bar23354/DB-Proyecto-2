@@ -1,0 +1,13 @@
+Concurrencia,Nivel Aislamiento,Exitos,Fallos,Deadlocks,Tiempo Avg (ms),Estado Final
+5,READ COMMITTED,5,0,0,303.39,disponible
+5,REPEATABLE READ,5,0,0,357.78,disponible
+5,SERIALIZABLE,5,0,0,574.30,disponible
+10,READ COMMITTED,10,0,0,329.51,disponible
+10,REPEATABLE READ,10,0,0,407.20,disponible
+10,SERIALIZABLE,9,1,0,536.35,disponible
+20,READ COMMITTED,16,4,0,395.43,disponible
+20,REPEATABLE READ,17,3,0,458.03,disponible
+20,SERIALIZABLE,16,4,0,542.59,disponible
+30,READ COMMITTED,21,9,0,464.64,disponible
+30,REPEATABLE READ,28,2,0,600.06,disponible
+30,SERIALIZABLE,22,8,0,649.43,disponible
