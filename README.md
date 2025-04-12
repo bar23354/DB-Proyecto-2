@@ -1,4 +1,4 @@
-# Sistema de Reservas de Vuelos
+# Simulación de reservas de vuelos
 
 ## Requisitos
 - Go
@@ -10,16 +10,20 @@ Crea una base de datos en pgAdmin con el siguiente nombre
 reservaciones_vuelos
 ```
 
-El usuario por defendo en PostgreSQL es postgres, pero si tú tienes otro nombre de usuario, puedes cambiarlo en el .env
+El usuario por defecto en PostgreSQL es postgres, pero si tú tienes otro nombre de usuario, puedes cambiarlo en el .env
 
 Pon la contraseña de tu usuario en el .env
 
-En sql_scripts accede al archivo 00_ddl.sql, copia su contenido y pegalo y ejecutalo en el Query tool de pgAdmin, en la base de datos que acabas de crear.
+En sql_scripts accede al archivo ddl.sql, copia su contenido, pegalo y ejecutalo en el Query tool de pgAdmin, en la base de datos que acabas de crear.
 
 ## Ejecutar el código de simulación
-En cmd/powershell accede a la ubicación de la carpeta reservation-simulator
+En la terminal accede a la ubicación de la carpeta reservation-simulator
 
 Ejecuta el código con el siguiente comando:
 ```
 go run .
 ```
+
+## Ver los datos de simulación
+En la carpeta reservation-simulator se creará un archivo csv en el cual están los datos generados por la simulación.
+
